@@ -1,40 +1,21 @@
-# ANAS EDITOR — starter project
+# ANAS EDITOR v2
 
-A premium dark UI starter for an audio-first, still-image-based video editor.
+Audio-first video studio that runs fully in the browser (no backend needed).
 
-## Current prototype
-- Upload voiceover audio (MP3/WAV) and play/scrub it.
-- Upload a presenter image and multiple scene images.
-- Preview three layouts: presenter left, presenter right, or presenter in a corner.
-- Six caption presets and five waveform presets, with adjustable colors/sizes.
-- Image-to-image transitions in preview: smooth crossfade, fade + gentle zoom, or hard cut; adjustable duration (0.4s, 0.7s, 1.2s).
-- Switch preview canvas between 16:9 and 9:16.
+## Features
+- Person image: Left / Right / Free (drag anywhere), size slider, flip, rounded card.
+- Captions: auto word-by-word from audio (Whisper in browser via transformers.js), or paste a script, or import SRT.
+- Premium caption styles: color combos (white+yellow/red/green/cyan/pink/orange/purple), 6 looks, 10 animations. Drag the caption anywhere.
+- Audio waves: 5 simple + 5 premium animated templates driven by the real audio. Drag anywhere, set color/size.
+- Backgrounds: Pixabay API key -> search free videos/photos (nature, ocean, ...), build a playlist, or upload your own.
+- Export: records canvas + audio to MP4 (if browser supports) or WebM.
 
-## Important current limitations
-This is a front-end starter/prototype, not a finished production editor:
-- It does not yet transcribe audio automatically.
-- It does not yet generate AI images from speech.
-- The export button is a placeholder; it does not create an MP4 yet.
-- Uploaded images are manually selected in this version.
+## Run
+`python -m http.server 8000` then open http://localhost:8000 (Chrome or Edge recommended).
 
-## Recommended next implementation steps
-1. Add a Python FastAPI or Node backend for secure API calls.
-2. Transcribe uploaded audio using a speech-to-text API (for example Gemini audio input or a dedicated transcription service) and retain word/segment timestamps.
-3. Have a language model summarize transcript segments into image prompts.
-4. Generate still images using an image-generation model. The preview supports fade/crossfade and gentle-zoom transitions; implement the same transition timing in FFmpeg for final export. Do not use Veo if the requirement is still images only; Veo is for video generation and is priced per generated video second.
-5. Render the final video with FFmpeg: scene stills + slow pan/zoom + presenter overlay + timed captions + voiceover + waveform + optional music.
-6. Return a downloadable MP4 and show job progress.
-
-## Deployment
-- GitHub can store the repository for free. GitHub Pages can host static frontend files, but it is not a secure backend and must not hold private API keys.
-- For AI APIs, use a backend service and store API keys as server-side environment secrets.
-- API usage may cost money even if hosting or AI Studio prototyping is free. Check each provider's current quotas/pricing before generating lots of images.
-- Never paste a private API key into a public repo or frontend JavaScript.
-
-## Run locally
-Open `index.html` in a modern browser. For best results, run a simple local static server:
-`python -m http.server 8000`
-Then open `http://localhost:8000`.
-
-## Project name
-ANAS EDITOR
+## Notes
+- Get a free Pixabay key at https://pixabay.com/api/docs/. It is stored only in your browser's localStorage (optional). Never commit it to a public repo.
+- First caption generation downloads the Whisper model (~40-80 MB) from the internet; later runs use the browser cache.
+- Export is real-time (a 60s audio takes 60s). Keep the tab visible.
+- If a Pixabay clip is blank in export (CORS), download it and add it with "+ Apni video".
+- For perfect-quality MP4 conversion, run the WebM through FFmpeg: `ffmpeg -i in.webm out.mp4`.

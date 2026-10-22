@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ANAS EDITOR — AI Voice-to-Video Studio</title>
+<title>ANAS EDITOR — Voice-to-Video Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;600;800;900&family=Montserrat:wght@800;900&family=Noto+Sans+Arabic:wght@700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,60 +13,114 @@
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">A</div><div><b>ANAS EDITOR</b><small>VOICE → VISUALS</small></div></div>
     <div class="nav-label">WORKSPACE</div>
-    <button class="nav active">◫ <span>Studio</span></button>
-    <button class="nav" id="jumpCaptions">▤ <span>Caption Studio</span></button>
-    <button class="nav" id="jumpWave">∿ <span>Audio Visualizer</span></button>
-    <div class="side-bottom"><span class="status-dot"></span> Local preview mode</div>
+    <button class="nav active" data-jump="pProject">◫ <span>Project</span></button>
+    <button class="nav" data-jump="pBg">▶ <span>Pixabay Background</span></button>
+    <button class="nav" data-jump="pCaption">▤ <span>Caption Studio</span></button>
+    <button class="nav" data-jump="pWave">∿ <span>Audio Waves</span></button>
+    <div class="side-bottom"><span class="status-dot"></span> Runs in your browser</div>
   </aside>
+
   <main class="main">
-    <header class="topbar"><div><div class="eyebrow">CREATOR WORKSPACE</div><h1>Make every second look premium.</h1></div><div class="top-actions"><span class="pill">BETA · 01</span><button class="btn ghost" id="resetBtn">Reset</button></div></header>
+    <header class="topbar">
+      <div><div class="eyebrow">CREATOR WORKSPACE</div><h1>Make every second look premium.</h1></div>
+      <div class="top-actions"><span class="pill">V2</span><button class="btn ghost" id="resetBtn">Reset</button></div>
+    </header>
+
     <section class="grid">
       <div class="panel preview-panel">
-        <div class="panel-head"><div><b>Video Preview</b><small>16:9 · Live composition</small></div><span class="live"><i></i> PREVIEW</span></div>
-        <div class="stage-wrap"><canvas id="preview" width="1280" height="720"></canvas><div class="preview-hint" id="previewHint">Upload audio and images to begin</div></div>
-        <div class="preview-controls"><button class="btn primary" id="playBtn">▶ Play preview</button><span id="timeReadout">00:00 / 00:00</span><input id="scrub" type="range" min="0" max="100" value="0"></div>
-        <div class="note">This starter runs a local composition preview. API-backed image generation and full export rendering are separate integrations.</div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><b>Project Setup</b><small>Start with voiceover audio</small></div></div>
-        <div class="field"><label>VOICEOVER AUDIO</label><label class="upload" for="audioFile"><span class="upload-icon">♫</span><span><b id="audioName">Choose MP3 / WAV</b><small>Audio is processed locally in this demo</small></span><span class="choose">Browse</span></label><input id="audioFile" type="file" accept="audio/*" hidden></div>
-        <div class="field"><label>PRESENTER IMAGE (OPTIONAL)</label><label class="upload" for="personFile"><span class="upload-icon">▧</span><span><b id="personName">Add PNG / JPG</b><small>Transparent PNG works best</small></span><span class="choose">Browse</span></label><input id="personFile" type="file" accept="image/*" hidden></div>
-        <div class="field"><label>AI SCENE IMAGES</label><label class="upload" for="sceneFiles"><span class="upload-icon">▦</span><span><b id="sceneName">Add multiple images</b><small>Use topic-matched AI still images</small></span><span class="choose">Browse</span></label><input id="sceneFiles" type="file" accept="image/*" multiple hidden></div>
-        <div class="field"><label>COMPOSITION</label><select id="layout"><option value="left">Presenter left · visuals right</option><option value="right">Presenter right · visuals left</option><option value="corner">Full image · presenter corner</option></select></div>
-        <div class="field"><label>IMAGE TRANSITIONS</label><select id="transitionStyle"><option value="fade">Smooth Fade In / Fade Out</option><option value="fadezoom">Fade + Gentle Zoom</option><option value="cut">No transition (Cut)</option></select></div>
-        <div class="field"><label>TRANSITION DURATION</label><select id="transitionDuration"><option value="0.4">0.4 seconds · Quick</option><option value="0.7" selected>0.7 seconds · Premium</option><option value="1.2">1.2 seconds · Cinematic</option></select></div>
-        <div class="field"><label>OUTPUT FORMAT</label><div class="segmented"><button class="seg active" data-ratio="landscape">YouTube 16:9</button><button class="seg" data-ratio="vertical">Shorts 9:16</button></div></div>
-      </div>
-      <div class="panel" id="captionPanel">
-        <div class="panel-head"><div><b>Caption Studio</b><small>Premium two-line subtitle presets</small></div><span class="count">06 STYLES</span></div>
-        <div class="field"><label>CAPTION TEXT (DEMO)</label><textarea id="captionText" rows="2">THIS IS MY CAR AND</textarea><small class="helper">Audio transcription and word timing can be connected in the backend.</small></div>
-        <div class="template-grid" id="captionTemplates">
-          <button class="template selected" data-style="bold"><span class="mini bold">THIS IS<br>MY CAR AND</span><small>Creator Bold</small></button>
-          <button class="template" data-style="yellow"><span class="mini yellow">THIS IS<br>MY CAR AND</span><small>Impact Yellow</small></button>
-          <button class="template" data-style="clean"><span class="mini clean">THIS IS<br>MY CAR AND</span><small>Clean White</small></button>
-          <button class="template" data-style="boxed"><span class="mini boxed">THIS IS<br>MY CAR AND</span><small>Dark Box</small></button>
-          <button class="template" data-style="outline"><span class="mini outline">THIS IS<br>MY CAR AND</span><small>Neon Outline</small></button>
-          <button class="template" data-style="word"><span class="mini word">THIS IS<br>MY CAR AND</span><small>Word Pop</small></button>
+        <div class="panel-head"><div><b>Video Preview</b><small>Caption, wave aur person ko mouse se drag karke kahin bhi rakho</small></div><span class="live"><i></i> LIVE</span></div>
+        <div class="stage-wrap" id="stageWrap"><canvas id="preview" width="1280" height="720"></canvas><div class="preview-hint" id="previewHint">Voiceover audio upload karo, phir Play dabao</div></div>
+        <div class="preview-controls"><button class="btn primary" id="playBtn">▶ Play</button><span id="timeReadout">00:00 / 00:00</span><input id="scrub" type="range" min="0" max="100" step="0.01" value="0"></div>
+        <div class="export-box">
+          <button class="btn primary" id="exportBtn">⬇ Export video</button>
+          <div class="bar"><i id="exportBar"></i></div><span id="exportText">Export real-time record hota hai · tab open rakhna</span>
         </div>
-        <div class="two-fields"><div class="field"><label>FONT SIZE</label><input id="fontSize" type="range" min="32" max="84" value="64"></div><div class="field"><label>HIGHLIGHT COLOR</label><input id="highlight" type="color" value="#f7d84a"></div></div>
+        <div class="note">Export browser me hota hai (MP4 agar browser support kare, warna WebM). Export ke dauran tab ko background me mat bhejna.</div>
       </div>
-      <div class="panel" id="wavePanel">
-        <div class="panel-head"><div><b>Audio Visualizer</b><small>Bottom-right waveform presets</small></div><span class="count">05 STYLES</span></div>
-        <div class="wave-demo"><canvas id="wavePreview" width="520" height="100"></canvas></div>
-        <div class="template-grid wave-grid" id="waveTemplates">
-          <button class="template wave-selected" data-wave="bars"><span class="wave-icon bars">▮▮▮▮▮</span><small>Pulse Bars</small></button>
-          <button class="template" data-wave="line"><span class="wave-icon line">∿∿∿∿</span><small>Smooth Line</small></button>
-          <button class="template" data-wave="dots"><span class="wave-icon dots">••••••</span><small>Dot Matrix</small></button>
-          <button class="template" data-wave="mirror"><span class="wave-icon mirror">▥▥▥▥</span><small>Mirror</small></button>
-          <button class="template" data-wave="ring"><span class="wave-icon ring">◉</span><small>Audio Ring</small></button>
-        </div>
-        <div class="two-fields"><div class="field"><label>WAVE COLOR</label><input id="waveColor" type="color" value="#65f5d0"></div><div class="field"><label>WAVE SIZE</label><input id="waveSize" type="range" min="35" max="100" value="70"></div></div>
+
+      <div class="side-col">
+        <details class="panel" id="pProject" open>
+          <summary><b>1 · Project</b><small>Audio, person, format</small></summary>
+          <div class="field"><label>VOICEOVER AUDIO</label><label class="upload" for="audioFile"><span class="upload-icon">♫</span><span><b id="audioName">Choose MP3 / WAV</b><small>Audio sirf aap ke browser me process hoti hai</small></span><span class="choose">Browse</span></label><input id="audioFile" type="file" accept="audio/*" hidden></div>
+          <div class="field"><label>PERSON IMAGE (transparent PNG best)</label><label class="upload" for="personFile"><span class="upload-icon">▧</span><span><b id="personName">Add PNG / JPG</b><small>Left, right ya free drag</small></span><span class="choose">Browse</span></label><input id="personFile" type="file" accept="image/*" hidden></div>
+          <div class="two-fields">
+            <div class="field"><label>PERSON POSITION</label><select id="personMode"><option value="left">Left side</option><option value="right">Right side</option><option value="free">Free (drag anywhere)</option></select></div>
+            <div class="field"><label>PERSON SIZE</label><input id="personScale" type="range" min="25" max="100" value="85"></div>
+          </div>
+          <div class="checks"><label><input type="checkbox" id="personFlip"> Flip image</label><label><input type="checkbox" id="personCard"> Rounded card (non-transparent photo)</label></div>
+          <div class="field"><label>OUTPUT FORMAT</label><div class="segmented"><button class="seg active" data-ratio="landscape">YouTube 16:9</button><button class="seg" data-ratio="vertical">Shorts 9:16</button></div></div>
+        </details>
+
+        <details class="panel" id="pBg" open>
+          <summary><b>2 · Pixabay Background</b><small>Nature, ocean, city... free videos &amp; photos</small></summary>
+          <div class="field"><label>PIXABAY API KEY</label>
+            <input type="password" id="pbKey" class="text" placeholder="Apni Pixabay API key yahan paste karo" autocomplete="off">
+            <div class="checks"><label><input type="checkbox" id="pbRemember" checked> Is browser me key yaad rakho</label></div>
+            <small class="helper">Free key: pixabay.com → Login → API docs. Key sirf aap ke browser se seedha Pixabay ko jati hai, kisi aur server ko nahi.</small>
+          </div>
+          <div class="field"><label>SEARCH</label>
+            <div class="row"><select id="pbType"><option value="video">Videos</option><option value="photo">Photos</option></select><input id="pbQuery" class="text" placeholder="ocean, forest, city night..."><button class="btn primary" id="pbSearch">Search</button></div>
+            <div class="chips-row" id="pbChips"></div>
+          </div>
+          <div class="results" id="pbResults"></div>
+          <button class="btn ghost wide" id="pbMore" style="display:none">Load more</button>
+          <div class="field"><label>YOUR BACKGROUND PLAYLIST <span id="plCount"></span></label><div class="playlist" id="playlist"><small class="helper">Search results me clip par click karo to yahan add ho jayegi.</small></div>
+            <div class="row"><label class="btn ghost" for="bgFiles">+ Apni video/photo</label><input id="bgFiles" type="file" accept="video/*,image/*" multiple hidden><button class="btn ghost" id="plClear">Clear all</button></div>
+          </div>
+          <div class="two-fields">
+            <div class="field"><label>CHANGE EVERY <b id="bgIntervalVal">6s</b></label><input id="bgInterval" type="range" min="3" max="20" value="6"></div>
+            <div class="field"><label>DARK SHADE <b id="bgShadeVal">20%</b></label><input id="bgShade" type="range" min="0" max="70" value="20"></div>
+          </div>
+          <div class="two-fields">
+            <div class="field"><label>TRANSITION</label><select id="bgTransition"><option value="fade">Smooth fade</option><option value="fadezoom">Fade + zoom</option><option value="slide">Slide</option><option value="cut">Cut</option></select></div>
+            <div class="field"><label>DURATION</label><select id="bgTransDur"><option value="0.4">0.4s Quick</option><option value="0.7" selected>0.7s Premium</option><option value="1.2">1.2s Cinematic</option></select></div>
+          </div>
+          <div class="checks"><label><input type="checkbox" id="bgMotion" checked> Photos par slow zoom (Ken Burns)</label></div>
+        </details>
+
+        <details class="panel" id="pCaption" open>
+          <summary><b>3 · Caption Studio</b><small>Audio se word-by-word premium captions</small></summary>
+          <div class="field"><label>AUTO CAPTIONS FROM AUDIO</label>
+            <div class="two-fields"><select id="capLang"><option value="auto">Language: Auto</option><option value="english">English</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="spanish">Spanish</option><option value="arabic">Arabic</option></select>
+            <select id="capModel"><option value="Xenova/whisper-tiny">Fast (tiny ~40MB)</option><option value="Xenova/whisper-base">Better (base ~80MB)</option></select></div>
+            <button class="btn primary wide" id="genBtn">🎙 Generate captions from audio</button>
+            <div class="status" id="capStatus">Pehli dafa model download hota hai (internet chahiye). Baad me browser cache use karta hai.</div>
+          </div>
+          <div class="field"><label>TRANSCRIPT (edit karo ya apna script paste karo)</label><textarea id="transcript" rows="4" placeholder="Yahan text aayega. Ya apna script paste karke 'Auto-time' dabao."></textarea>
+            <div class="row"><button class="btn ghost" id="applyText">Auto-time / apply text</button><label class="btn ghost" for="srtFile">Import SRT</label><input type="file" id="srtFile" accept=".srt,.vtt,text/plain" hidden><button class="btn ghost" id="clearCaps">Clear</button></div>
+          </div>
+          <div class="field"><label>COLOR COMBO</label><div class="chips" id="colorChips"></div>
+            <div class="two-fields"><div class="field"><label>MAIN COLOR</label><input type="color" id="capBase" value="#ffffff"></div><div class="field"><label>ACTIVE WORD COLOR</label><input type="color" id="capAccent" value="#ffd400"></div></div>
+          </div>
+          <div class="two-fields">
+            <div class="field"><label>LOOK</label><select id="capLook"><option value="classic">Classic Bold (outline)</option><option value="highlighter">Highlighter box</option><option value="neon">Neon glow</option><option value="shadow">Clean shadow</option><option value="outline">Color outline</option><option value="bar">Dark bar</option></select></div>
+            <div class="field"><label>ANIMATION</label><select id="capAnim"><option value="pop">Pop in</option><option value="bounce">Bounce</option><option value="slide">Slide up</option><option value="fade">Fade</option><option value="type">Typewriter</option><option value="zoom">Zoom flash</option><option value="glitch">Glitch</option><option value="wave">Wavy letters</option><option value="karaoke">Karaoke fill</option><option value="none">None</option></select></div>
+          </div>
+          <div class="two-fields">
+            <div class="field"><label>FONT</label><select id="capFont"><option>Inter</option><option>Montserrat</option><option>Poppins</option><option>Anton</option><option>Bebas Neue</option><option>Noto Sans Arabic</option></select></div>
+            <div class="field"><label>WORDS ON SCREEN</label><select id="capPer"><option value="1">1 word</option><option value="2">2 words</option><option value="3" selected>3 words</option><option value="4">4 words</option><option value="6">6 words</option></select></div>
+          </div>
+          <div class="field"><label>FONT SIZE <b id="capSizeVal">64</b></label><input id="capSize" type="range" min="28" max="120" value="64"></div>
+          <div class="checks"><label><input type="checkbox" id="capUpper" checked> UPPERCASE</label><label><input type="checkbox" id="capRTL"> Right-to-left (Urdu/Arabic)</label></div>
+          <button class="btn ghost wide" id="resetCap">Caption position reset</button>
+        </details>
+
+        <details class="panel" id="pWave" open>
+          <summary><b>4 · Audio Waves</b><small>Simple + Premium animated templates</small></summary>
+          <div class="checks"><label><input type="checkbox" id="waveOn" checked> Wave dikhao</label></div>
+          <div class="field"><label>SIMPLE</label><div class="template-grid wave-grid" id="waveSimple"></div></div>
+          <div class="field"><label>PREMIUM</label><div class="template-grid wave-grid" id="wavePremium"></div></div>
+          <div class="two-fields"><div class="field"><label>COLOR 1</label><input type="color" id="waveColor" value="#65f5d0"></div><div class="field"><label>COLOR 2 (premium)</label><input type="color" id="waveColor2" value="#7a5cff"></div></div>
+          <div class="two-fields"><div class="field"><label>WIDTH</label><input type="range" id="waveW" min="10" max="100" value="40"></div><div class="field"><label>HEIGHT / SIZE</label><input type="range" id="waveH" min="5" max="45" value="14"></div></div>
+          <button class="btn ghost wide" id="resetWave">Wave position reset</button>
+        </details>
       </div>
     </section>
-    <footer class="footer"><div><b>ANAS EDITOR</b><span> · Built for creators in the US, Mexico & worldwide</span></div><button class="btn primary" id="exportBtn">Export preview video ↗</button></footer>
+
+    <footer class="footer"><div><b>ANAS EDITOR</b><span> · Built for creators in the US, Mexico &amp; worldwide</span></div><span>Backgrounds: Pixabay (free license)</span></footer>
     <div class="toast" id="toast"></div>
   </main>
 </div>
-<audio id="audio" crossorigin="anonymous"></audio>
+<audio id="audio"></audio>
 <script src="app.js"></script>
 </body></html>
