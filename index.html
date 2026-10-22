@@ -82,7 +82,8 @@
           <summary><b>3 · Caption Studio</b><small>Audio se word-by-word premium captions</small></summary>
           <div class="field"><label>AUTO CAPTIONS FROM AUDIO</label>
             <div class="two-fields"><select id="capLang"><option value="auto">Language: Auto</option><option value="english">English</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="spanish">Spanish</option><option value="arabic">Arabic</option></select>
-            <select id="capModel"><option value="Xenova/whisper-tiny">Fast (tiny ~40MB)</option><option value="Xenova/whisper-base">Better (base ~80MB)</option></select></div>
+            <select id="capModel"><option value="onnx-community/whisper-tiny">Fast (tiny)</option><option value="onnx-community/whisper-base">Better (base)</option></select></div>
+            <div class="field"><select id="capSpeed"><option value="fast" selected>Fast mode (sentence timing, recommended)</option><option value="precise">Precise mode (exact word timing, slower)</option></select></div>
             <button class="btn primary wide" id="genBtn">🎙 Generate captions from audio</button>
             <div class="status" id="capStatus">Pehli dafa model download hota hai (internet chahiye). Baad me browser cache use karta hai.</div>
           </div>
