@@ -286,6 +286,7 @@ $('applyText').onclick = () => {
 $('clearCaps').onclick = () => { words = []; $('transcript').value = ''; $('capStatus').textContent = 'Captions clear.'; };
 $('srtFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return; const txt = await f.text(); const out = [];
+  if (/\.json$/i.test(f.name)) { try { applyLoaded(JSON.parse(txt).words); } catch (err) { toast('JSON file sahi nahi hai.'); } e.target.value = ''; return; }
   const ts = s => { const m = s.match(/(\d+):(\d+):(\d+)[,.](\d+)/); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000 : 0; };
   txt.replace(/\r/g, '').split(/\n\n+/).forEach(block => {
     const lines = block.split('\n'), ti = lines.findIndex(l => l.includes('-->')); if (ti < 0) return;
@@ -296,63 +297,17 @@ $('srtFile').addEventListener('change', async e => {
   e.target.value = '';
 });
 
-/* ---- Whisper in a web worker (transformers.js) ---- */
-const workerSrc = `
-let asr=null,key='',tf=null;
-const build=async(model,dev)=>tf.pipeline('automatic-speech-recognition',model,{device:dev,
- dtype:dev==='webgpu'?{encoder_model:'fp32',decoder_model_merged:'q4'}:{encoder_model:'q8',decoder_model_merged:'q8'},
- progress_callback:p=>self.postMessage({type:'progress',p})});
-self.onmessage=async e=>{const {model,audio,opts,device}=e.data;try{
- if(!tf){tf=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2');tf.env.allowLocalModels=false}
- let dev=device;
- const load=async()=>{const k=model+dev;if(asr&&key===k)return;
-  try{asr=await build(model,dev)}catch(err){if(dev==='webgpu'){dev='wasm';self.postMessage({type:'info',msg:'GPU nahi mila, CPU par chal raha hai (slow)...'});asr=await build(model,dev)}else throw err}
-  key=model+dev};
- await load();
- self.postMessage({type:'running',dev});
- let out;
- try{out=await asr(audio,opts)}
- catch(err){
-  if(dev==='webgpu'){dev='wasm';asr=null;self.postMessage({type:'info',msg:'GPU fail hua, CPU par dobara...'});await load();out=await asr(audio,opts)}
-  else if(opts.return_timestamps==='word'){self.postMessage({type:'info',msg:'Word timing nahi mili, segment timing use ho rahi hai...'});out=await asr(audio,{...opts,return_timestamps:true})}
-  else throw err}
- self.postMessage({type:'done',out})
-}catch(err){self.postMessage({type:'error',msg:String(err&&err.message||err)})}}`;
-let worker = null;
-$('genBtn').onclick = async () => {
-  if (!audioFile) { toast('Pehlay voiceover audio upload karo.'); return; }
-  const st = $('capStatus'), btn = $('genBtn'); btn.disabled = true; const t0 = Date.now(); st.textContent = 'Audio decode ho rahi hai...';
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC({ sampleRate: 16000 });
-    const dec = await ac.decodeAudioData(await audioFile.arrayBuffer()); ac.close();
-    let data = new Float32Array(dec.length);
-    for (let ch = 0; ch < dec.numberOfChannels; ch++) { const d = dec.getChannelData(ch); for (let i = 0; i < d.length; i++) data[i] += d[i] / dec.numberOfChannels; }
-    if (!worker) worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' })));
-    const precise = $('capSpeed').value === 'precise'; const opts = { return_timestamps: precise ? 'word' : true, chunk_length_s: 30, stride_length_s: 5, task: 'transcribe' };
-    if ($('capLang').value !== 'auto') opts.language = $('capLang').value;
-    const out = await new Promise((res, rej) => {
-      worker.onmessage = ev => {
-        const m = ev.data;
-        if (m.type === 'progress') { const p = m.p; if (p.status === 'progress') st.textContent = `Model download: ${Math.round(p.progress)}% (${(p.file || '').split('/').pop()})`; else if (p.status === 'ready') st.textContent = 'Model ready...'; }
-        else if (m.type === 'running') st.textContent = 'Awaaz sun raha hoon' + (m.dev === 'webgpu' ? ' (GPU, fast)' : ' (CPU)') + '...';
-        else if (m.type === 'info') st.textContent = m.msg;
-        else if (m.type === 'done') res(m.out); else if (m.type === 'error') rej(new Error(m.msg));
-      };
-      worker.onerror = e => rej(new Error(e.message || 'worker error'));
-      worker.postMessage({ model: $('capModel').value, audio: data, opts, device: navigator.gpu ? 'webgpu' : 'wasm' }, [data.buffer]);
-    });
-    const chunks = out.chunks || [];
-    words = chunks.flatMap(c => {
-      const s = (c.timestamp && c.timestamp[0]) || 0; let e = c.timestamp && c.timestamp[1]; if (e == null) e = s + .4;
-      const tokens = (c.text || '').trim().split(/\s+/).filter(Boolean);
-      return tokens.length > 1 ? distribute(tokens, s, e) : tokens.map(w => ({ w, s, e }));
-    });
-    if (!words.length) throw new Error('Koi bol detect nahi hua');
-    syncText(); st.textContent = `Done ✓ ${words.length} words in ${Math.round((Date.now() - t0) / 1000)}s. Galti ho to transcript edit karke "apply" dabao.`; toast('Captions ready!');
-  } catch (err) {
-    st.textContent = 'Auto-transcribe fail: ' + err.message + '. Backup: apna script paste karke "Auto-time" dabao ya SRT import karo.';
-  }
-  btn.disabled = false;
+/* ---- load captions made in Caption Maker ---- */
+function applyLoaded(arr) {
+  const ok = Array.isArray(arr) ? arr.filter(w => w && typeof w.w === 'string' && isFinite(w.s) && isFinite(w.e)) : [];
+  if (!ok.length) { toast('Captions nahi mile.'); return; }
+  words = ok.map(w => ({ w: w.w, s: +w.s, e: +w.e })); syncText();
+  $('capStatus').textContent = 'Loaded ✓ ' + words.length + ' words.'; toast('Captions load ho gaye!');
+}
+$('loadLast').onclick = () => {
+  let j = null; try { j = JSON.parse(localStorage.getItem('anas_captions_v1') || 'null'); } catch (e) {}
+  if (!j) { toast('Abhi koi caption nahi bana. Pehlay Caption Maker se banao.'); return; }
+  applyLoaded(j.words);
 };
 
 /* ---------------- audio waves ---------------- */

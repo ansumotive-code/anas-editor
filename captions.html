@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ANAS EDITOR — Caption Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+[hidden]{display:none!important}
+.cm{max-width:780px;margin:0 auto;padding:26px 20px 40px}
+.cm .panel{margin-bottom:16px}
+.cm h1{font-size:22px;margin:6px 0 4px;letter-spacing:-.6px}
+.cm .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.cm a.btn{text-decoration:none}
+.log{background:#0a1017;border:1px solid #263440;border-radius:9px;padding:10px;height:190px;overflow:auto;font:11px/1.55 ui-monospace,Consolas,monospace;color:#9fb3c4;white-space:pre-wrap;margin:10px 0 0}
+.live{font-size:12px;color:var(--mint);min-height:18px;margin-top:10px}
+.big-bar{height:9px;background:#0b1016;border:1px solid #263441;border-radius:6px;overflow:hidden;margin-top:10px}
+.big-bar i{display:block;height:100%;width:0;background:var(--mint);transition:width .3s}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#9fb3c4;margin:6px 0 12px}
+.stats b{color:#fff}
+.preview-text{background:#0c1118;border:1px solid #2a3744;border-radius:8px;padding:12px;font-size:13px;line-height:1.7;max-height:200px;overflow:auto;white-space:pre-wrap}
+.row.gap{margin-top:14px}
+</style>
+</head>
+<body>
+<div class="cm">
+  <div class="top">
+    <div><div class="eyebrow" style="margin:0">STEP 1 OF 2</div><h1>Caption Maker</h1><small class="helper">Pehlay yahan audio se captions banao. Phir Editor me load karke jahan chaho rakho.</small></div>
+    <a class="btn ghost" href="index.html">← Editor</a>
+  </div>
+
+  <div class="panel">
+    <div class="field" style="margin-top:0"><label>VOICEOVER AUDIO</label>
+      <label class="upload" for="audioFile"><span class="upload-icon">♫</span><span><b id="audioName">Choose MP3 / WAV</b><small>Audio aap ke browser se bahar nahi jati</small></span><span class="choose">Browse</span></label>
+      <input id="audioFile" type="file" accept="audio/*" hidden>
+    </div>
+    <div class="two-fields">
+      <div class="field"><label>LANGUAGE</label><select id="lang"><option value="auto">Auto detect</option><option value="english">English</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="spanish">Spanish</option><option value="arabic">Arabic</option></select></div>
+      <div class="field"><label>MODEL</label><select id="model"><option value="onnx-community/whisper-tiny">Fast (tiny)</option><option value="onnx-community/whisper-base">Better (base)</option></select></div>
+    </div>
+    <div class="two-fields">
+      <div class="field"><label>DEVICE</label><select id="device"><option value="auto">Auto (GPU agar mile)</option><option value="webgpu">GPU (WebGPU)</option><option value="wasm">CPU</option></select></div>
+      <div class="field"><label>TIMING</label><select id="mode"><option value="fast">Fast (sentence timing)</option><option value="precise">Precise (word timing, slower)</option></select></div>
+    </div>
+    <div class="row gap"><button class="btn primary" id="genBtn" style="flex:1">🎙 Generate captions</button><button class="btn ghost" id="cancelBtn" hidden>■ Cancel</button></div>
+    <div class="big-bar"><i id="bar"></i></div>
+    <div class="live" id="live">Audio chuno aur Generate dabao.</div>
+    <pre class="log" id="log"></pre>
+  </div>
+
+  <div class="panel" id="result" hidden>
+    <div class="field" style="margin-top:0"><label>RESULT</label>
+      <div class="stats"><span>Words: <b id="count">0</b></span><span>Time laga: <b id="took">-</b></span><span>Device: <b id="usedDev">-</b></span></div>
+      <div class="preview-text" id="preview"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="dlJson">⬇ captions.json</button>
+      <button class="btn ghost" id="dlSrt">⬇ captions.srt</button>
+      <button class="btn ghost" id="copyTxt">Copy text</button>
+    </div>
+    <div class="note" style="margin-top:12px">Captions is browser me save bhi ho gaye hain. Editor kholo aur Caption Studio me <b>"2 · Last bane hue captions load karo"</b> dabao. Ya .json file wahan import kar do.</div>
+    <div class="row gap"><a class="btn primary" href="index.html" target="_blank" rel="noopener">Editor kholo →</a></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+let file = null, words = [], worker = null, running = false, cancelled = false, t0 = Date.now(), curDev = '', chunkStart = 0, warned = false, timer = null;
+const logEl = $('log');
+function log(m) { logEl.textContent += '[' + fmt((Date.now() - t0) / 1000) + '] ' + m + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+function live(m) { $('live').textContent = m; }
+
+/* The worker runs Whisper (transformers.js) away from the page so the UI never freezes. */
+function workerMain() {
+  let tf = null, asr = null, dev = '';
+  const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
+  const build = (model, d) => tf.pipeline('automatic-speech-recognition', model, {
+    device: d,
+    dtype: d === 'webgpu' ? { encoder_model: 'fp32', decoder_model_merged: 'q4' } : { encoder_model: 'q8', decoder_model_merged: 'q8' },
+    progress_callback: p => self.postMessage({ type: 'progress', p })
+  });
+  self.onmessage = async e => {
+    const m = e.data;
+    try {
+      if (m.cmd === 'init') {
+        if (!tf) { tf = await import(CDN); tf.env.allowLocalModels = false; }
+        dev = m.device;
+        try { asr = await build(m.model, dev); }
+        catch (err) {
+          if (dev === 'webgpu') { self.postMessage({ type: 'info', msg: 'GPU load fail (' + (err && err.message || err) + ') → CPU par ja raha hoon' }); dev = 'wasm'; asr = await build(m.model, dev); }
+          else throw err;
+        }
+        self.postMessage({ type: 'ready', dev });
+      } else if (m.cmd === 'run') {
+        let out;
+        try { out = await asr(m.audio, m.opts); }
+        catch (err) {
+          if (m.opts.return_timestamps === 'word') { self.postMessage({ type: 'info', msg: 'Word timing nahi mili, sentence timing use ho rahi hai' }); out = await asr(m.audio, Object.assign({}, m.opts, { return_timestamps: true })); }
+          else throw err;
+        }
+        self.postMessage({ type: 'result', out });
+      }
+    } catch (err) { self.postMessage({ type: 'error', msg: String(err && err.message || err) }); }
+  };
+}
+function startWorker() {
+  if (worker) worker.terminate();
+  worker = new Worker(URL.createObjectURL(new Blob(['(' + workerMain.toString() + ')()'], { type: 'text/javascript' })));
+}
+function call(msg, transfer) {
+  return new Promise((res, rej) => {
+    worker.onmessage = ev => {
+      const m = ev.data;
+      if (m.type === 'progress') {
+        const p = m.p;
+        if (p.status === 'progress') live('Model download: ' + Math.round(p.progress) + '% · ' + (p.file || '').split('/').pop());
+        else if (p.status === 'initiate') log('Download: ' + (p.file || ''));
+      } else if (m.type === 'info') log(m.msg);
+      else if (m.type === 'ready' || m.type === 'result') res(m);
+      else if (m.type === 'error') rej(new Error(m.msg));
+    };
+    worker.onerror = e => rej(new Error(e.message || 'worker error'));
+    worker.postMessage(msg, transfer || []);
+  });
+}
+
+/* split into ~28s windows, cutting at the quietest moment so words are not chopped */
+function makeWindows(a) {
+  const SR = 16000, W = 28 * SR, SEARCH = 4 * SR, out = []; let s = 0;
+  while (s < a.length) {
+    let e = Math.min(a.length, s + W);
+    if (e < a.length) {
+      const from = Math.max(s + 5 * SR, e - SEARCH); let best = e, bv = Infinity;
+      for (let p = from; p + 800 <= e; p += 400) { let sum = 0; for (let k = p; k < p + 800; k++) sum += a[k] * a[k]; if (sum < bv) { bv = sum; best = p + 400; } }
+      e = best;
+    }
+    out.push([s, e]); s = e;
+  }
+  return out;
+}
+function distribute(tokens, start, end) {
+  const total = tokens.reduce((a, t) => a + t.length + 1.5, 0); let cur = start;
+  return tokens.map(t => { const d = (end - start) * (t.length + 1.5) / total; const o = { w: t, s: cur, e: cur + d * .92 }; cur += d; return o; });
+}
+
+$('audioFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; file = f; $('audioName').textContent = f.name; live('Ready. Generate dabao.'); });
+$('cancelBtn').onclick = () => { cancelled = true; if (worker) worker.terminate(); log('Cancel kar diya.'); finish(); };
+function finish() {
+  running = false; clearInterval(timer); $('genBtn').disabled = false; $('cancelBtn').hidden = true;
+}
+
+$('genBtn').onclick = async () => {
+  if (!file) { live('Pehlay audio file chuno.'); return; }
+  if (running) return;
+  running = true; cancelled = false; warned = false; words = []; t0 = Date.now(); logEl.textContent = ''; $('result').hidden = true; $('bar').style.width = '0';
+  $('genBtn').disabled = true; $('cancelBtn').hidden = false;
+  timer = setInterval(() => {
+    if (running && chunkStart && !warned && Date.now() - chunkStart > 90000) { warned = true; log('Ye hissa 90s se zyada le raha hai. Agar CPU par ho to Cancel karke Device=GPU ya Model=Fast try karo.'); }
+  }, 2000);
+  try {
+    log('Audio decode ho rahi hai...'); live('Audio decode ho rahi hai...');
+    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC({ sampleRate: 16000 });
+    const dec = await ac.decodeAudioData(await file.arrayBuffer()); ac.close();
+    const data = new Float32Array(dec.length);
+    for (let ch = 0; ch < dec.numberOfChannels; ch++) { const d = dec.getChannelData(ch); for (let i = 0; i < d.length; i++) data[i] += d[i] / dec.numberOfChannels; }
+    const dur = data.length / 16000, wins = makeWindows(data);
+    log('Audio length ' + fmt(dur) + ' · ' + wins.length + ' hisse');
+
+    let device = $('device').value; if (device === 'auto') device = navigator.gpu ? 'webgpu' : 'wasm';
+    if (device === 'webgpu' && !navigator.gpu) { log('Is browser me WebGPU nahi hai → CPU'); device = 'wasm'; }
+    const model = $('model').value; startWorker();
+    log('Model load ho raha hai (' + (device === 'webgpu' ? 'GPU' : 'CPU') + ')... pehli baar download hoga.');
+    const r0 = await call({ cmd: 'init', model, device }); curDev = r0.dev;
+    log('Model ready ✓ (' + (curDev === 'webgpu' ? 'GPU' : 'CPU') + ')');
+
+    const precise = $('mode').value === 'precise';
+    const opts = { return_timestamps: precise ? 'word' : true, task: 'transcribe' };
+    if ($('lang').value !== 'auto') opts.language = $('lang').value;
+    const tStart = Date.now();
+    for (let i = 0; i < wins.length; i++) {
+      if (cancelled) return;
+      const [s, e] = wins[i], off = s / 16000;
+      const doRun = () => { const slice = data.slice(s, e); return call({ cmd: 'run', audio: slice, opts }, [slice.buffer]); };
+      chunkStart = Date.now(); let r;
+      try { r = await doRun(); }
+      catch (err) {
+        if (cancelled) return;
+        if (curDev === 'webgpu') { log('GPU error: ' + err.message + ' → CPU par dobara'); startWorker(); const rr = await call({ cmd: 'init', model, device: 'wasm' }); curDev = rr.dev; r = await doRun(); }
+        else throw err;
+      }
+      (r.out.chunks || []).forEach(c => {
+        const ts = c.timestamp || [0, null], s0 = (ts[0] || 0) + off; let e0 = ts[1]; e0 = e0 == null ? s0 + .4 : e0 + off;
+        const tokens = (c.text || '').trim().split(/\s+/).filter(Boolean);
+        if (tokens.length > 1) words.push(...distribute(tokens, s0, e0)); else if (tokens.length) words.push({ w: tokens[0], s: s0, e: e0 });
+      });
+      const done = i + 1, el = (Date.now() - tStart) / 1000, eta = el / done * (wins.length - done);
+      $('bar').style.width = (done / wins.length * 100) + '%';
+      live('Hissa ' + done + '/' + wins.length + ' · ' + words.length + ' words · baqi ~' + fmt(eta));
+      log('Hissa ' + done + '/' + wins.length + ' ✓ (' + Math.round((Date.now() - chunkStart) / 1000) + 's)');
+    }
+    chunkStart = 0;
+    if (!words.length) throw new Error('Koi bol detect nahi hua. Language select karke dobara try karo.');
+    words.sort((a, b) => a.s - b.s);
+    try { localStorage.setItem('anas_captions_v1', JSON.stringify({ v: 1, words, created: Date.now() })); } catch (e) {}
+    $('count').textContent = words.length; $('took').textContent = fmt((Date.now() - t0) / 1000); $('usedDev').textContent = curDev === 'webgpu' ? 'GPU' : 'CPU';
+    $('preview').textContent = words.map(w => w.w).join(' '); $('result').hidden = false;
+    live('Done ✓ ' + words.length + ' words.'); log('Done ✓');
+  } catch (err) {
+    if (!cancelled) { log('ERROR: ' + err.message); live('Fail: ' + err.message + ' (log dekho)'); }
+  } finally { finish(); }
+};
+
+function dl(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+const ts = s => { const ms = Math.round(s * 1000), h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), sec = Math.floor(ms % 60000 / 1000), x = ms % 1000; return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':') + ',' + String(x).padStart(3, '0'); };
+$('dlJson').onclick = () => dl('captions.json', JSON.stringify({ v: 1, words }, null, 1), 'application/json');
+$('dlSrt').onclick = () => { let out = '', n = 1; for (let i = 0; i < words.length; i += 4) { const g = words.slice(i, i + 4); out += (n++) + '\n' + ts(g[0].s) + ' --> ' + ts(g[g.length - 1].e) + '\n' + g.map(w => w.w).join(' ') + '\n\n'; } dl('captions.srt', out, 'text/plain'); };
+$('copyTxt').onclick = async () => { try { await navigator.clipboard.writeText(words.map(w => w.w).join(' ')); live('Text copy ho gaya.'); } catch (e) { live('Copy nahi hua, text select karke copy karo.'); } };
+if (!navigator.gpu) log('Note: is browser me WebGPU nahi mila. CPU use hoga (slow). Chrome/Edge ka naya version try karo.');
+</script>
+</body>
+</html>

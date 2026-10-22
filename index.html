@@ -80,15 +80,13 @@
 
         <details class="panel" id="pCaption" open>
           <summary><b>3 · Caption Studio</b><small>Audio se word-by-word premium captions</small></summary>
-          <div class="field"><label>AUTO CAPTIONS FROM AUDIO</label>
-            <div class="two-fields"><select id="capLang"><option value="auto">Language: Auto</option><option value="english">English</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="spanish">Spanish</option><option value="arabic">Arabic</option></select>
-            <select id="capModel"><option value="onnx-community/whisper-tiny">Fast (tiny)</option><option value="onnx-community/whisper-base">Better (base)</option></select></div>
-            <div class="field"><select id="capSpeed"><option value="fast" selected>Fast mode (sentence timing, recommended)</option><option value="precise">Precise mode (exact word timing, slower)</option></select></div>
-            <button class="btn primary wide" id="genBtn">🎙 Generate captions from audio</button>
-            <div class="status" id="capStatus">Pehli dafa model download hota hai (internet chahiye). Baad me browser cache use karta hai.</div>
+          <div class="field"><label>CAPTIONS (2 STEPS)</label>
+            <a class="btn primary wide" href="captions.html" target="_blank" rel="noopener" style="text-decoration:none">1 · Caption Maker kholo (pehlay yahan captions banao)</a>
+            <button class="btn ghost wide" id="loadLast">2 · Last bane hue captions yahan load karo</button>
+            <div class="status" id="capStatus">Caption Maker me audio se captions banao, phir yahan load karo. Is tarah editor halka rehta hai aur tez chalta hai.</div>
           </div>
           <div class="field"><label>TRANSCRIPT (edit karo ya apna script paste karo)</label><textarea id="transcript" rows="4" placeholder="Yahan text aayega. Ya apna script paste karke 'Auto-time' dabao."></textarea>
-            <div class="row"><button class="btn ghost" id="applyText">Auto-time / apply text</button><label class="btn ghost" for="srtFile">Import SRT</label><input type="file" id="srtFile" accept=".srt,.vtt,text/plain" hidden><button class="btn ghost" id="clearCaps">Clear</button></div>
+            <div class="row"><button class="btn ghost" id="applyText">Auto-time / apply text</button><label class="btn ghost" for="srtFile">Import .json / .srt</label><input type="file" id="srtFile" accept=".json,.srt,.vtt,text/plain" hidden><button class="btn ghost" id="clearCaps">Clear</button></div>
           </div>
           <div class="field"><label>COLOR COMBO</label><div class="chips" id="colorChips"></div>
             <div class="two-fields"><div class="field"><label>MAIN COLOR</label><input type="color" id="capBase" value="#ffffff"></div><div class="field"><label>ACTIVE WORD COLOR</label><input type="color" id="capAccent" value="#ffd400"></div></div>

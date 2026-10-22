@@ -10,6 +10,10 @@ Audio-first video studio that runs fully in the browser (no backend needed).
 - Backgrounds: Pixabay API key -> search free videos/photos (nature, ocean, ...), build a playlist, or upload your own.
 - Export: records canvas + audio to MP4 (if browser supports) or WebM.
 
+## Workflow
+1. Open `captions.html` (Caption Maker), upload audio, generate captions (GPU if available). Result is saved in the browser and can be downloaded as .json/.srt.
+2. Open `index.html` (Editor) and press "Load last generated captions" (or import the .json).
+
 ## Run
 `python -m http.server 8000` then open http://localhost:8000 (Chrome or Edge recommended).
 
