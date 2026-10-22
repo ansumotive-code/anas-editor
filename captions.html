@@ -35,7 +35,7 @@
       <input id="audioFile" type="file" accept="audio/*" hidden>
     </div>
     <div class="two-fields">
-      <div class="field"><label>LANGUAGE</label><select id="lang"><option value="auto">Auto detect</option><option value="english">English</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="spanish">Spanish</option><option value="arabic">Arabic</option></select></div>
+      <div class="field"><label>LANGUAGE</label><select id="lang"><option value="auto">Auto detect</option></select></div>
       <div class="field"><label>MODEL</label><select id="model"><option value="onnx-community/whisper-tiny">Fast (tiny)</option><option value="onnx-community/whisper-base">Better (base)</option></select></div>
     </div>
     <div class="two-fields">
@@ -50,7 +50,7 @@
 
   <div class="panel" id="result" hidden>
     <div class="field" style="margin-top:0"><label>RESULT</label>
-      <div class="stats"><span>Words: <b id="count">0</b></span><span>Time laga: <b id="took">-</b></span><span>Device: <b id="usedDev">-</b></span></div>
+      <div class="stats"><span>Words: <b id="count">0</b></span><span>Time laga: <b id="took">-</b></span><span>Device: <b id="usedDev">-</b></span><span>Language: <b id="usedLang">-</b></span></div>
       <div class="preview-text" id="preview"></div>
     </div>
     <div class="row">
@@ -67,6 +67,8 @@
 const $ = id => document.getElementById(id);
 const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 let file = null, words = [], worker = null, running = false, cancelled = false, t0 = Date.now(), curDev = '', chunkStart = 0, warned = false, timer = null;
+const LANGS = [['en','english'],['es','spanish'],['fr','french'],['de','german'],['pt','portuguese'],['it','italian'],['ur','urdu'],['hi','hindi'],['ar','arabic'],['tr','turkish'],['ru','russian'],['zh','chinese'],['ja','japanese'],['ko','korean'],['nl','dutch'],['pl','polish'],['id','indonesian'],['fa','persian'],['bn','bengali'],['pa','punjabi']];
+LANGS.forEach(l => { const o = document.createElement('option'); o.value = l[1]; o.textContent = l[1][0].toUpperCase() + l[1].slice(1); $('lang').appendChild(o); });
 const logEl = $('log');
 function log(m) { logEl.textContent += '[' + fmt((Date.now() - t0) / 1000) + '] ' + m + '\n'; logEl.scrollTop = logEl.scrollHeight; }
 function live(m) { $('live').textContent = m; }
@@ -92,6 +94,20 @@ function workerMain() {
           else throw err;
         }
         self.postMessage({ type: 'ready', dev });
+      } else if (m.cmd === 'detect') {
+        const tok = asr.tokenizer;
+        const id = t => {
+          try { const v = tok.model && tok.model.tokens_to_ids && tok.model.tokens_to_ids.get(t); if (v != null) return v; } catch (e) {}
+          const r = tok.convert_tokens_to_ids([t]); return Array.isArray(r) ? r[0] : r;
+        };
+        const sot = id('<|startoftranscript|>');
+        const cand = m.codes.map(c => [c, id('<|' + c + '|>')]).filter(x => x[1] != null && x[1] >= 0);
+        if (new Set(cand.map(x => x[1])).size < 2) throw new Error('language tokens nahi mile');
+        const feats = await asr.processor(m.audio);
+        const out = await asr.model({ input_features: feats.input_features, decoder_input_ids: new tf.Tensor('int64', new BigInt64Array([BigInt(sot)]), [1, 1]) });
+        const dims = out.logits.dims, V = dims[dims.length - 1], off = (dims[1] - 1) * V, d = out.logits.data;
+        const scored = cand.map(x => [x[0], d[off + x[1]]]).sort((a, b) => b[1] - a[1]);
+        self.postMessage({ type: 'result', lang: scored[0][0], top: scored.slice(0, 3).map(x => x[0]) });
       } else if (m.cmd === 'run') {
         let out;
         try { out = await asr(m.audio, m.opts); }
@@ -176,7 +192,18 @@ $('genBtn').onclick = async () => {
 
     const precise = $('mode').value === 'precise';
     const opts = { return_timestamps: precise ? 'word' : true, task: 'transcribe' };
-    if ($('lang').value !== 'auto') opts.language = $('lang').value;
+    let langName = $('lang').value;
+    if (langName === 'auto') {
+      log('Language detect ho rahi hai...'); live('Language detect ho rahi hai...');
+      let bi = 0, be = -1;
+      wins.slice(0, 6).forEach((w, i) => { let sum = 0; for (let k = w[0]; k < w[1]; k += 16) sum += data[k] * data[k]; if (sum > be) { be = sum; bi = i; } });
+      const dsl = data.slice(wins[bi][0], wins[bi][1]); let det;
+      try { det = await call({ cmd: 'detect', audio: dsl, codes: LANGS.map(l => l[0]) }, [dsl.buffer]); }
+      catch (err) { throw new Error('Language auto-detect nahi hua (' + err.message + '). Dropdown se apni language chuno aur dobara try karo.'); }
+      const hit = LANGS.find(l => l[0] === det.lang); langName = hit ? hit[1] : 'english';
+      log('Detected language: ' + langName + ' (top: ' + det.top.join(', ') + ')');
+    } else log('Language: ' + langName);
+    opts.language = langName;
     const tStart = Date.now();
     for (let i = 0; i < wins.length; i++) {
       if (cancelled) return;
@@ -203,7 +230,7 @@ $('genBtn').onclick = async () => {
     if (!words.length) throw new Error('Koi bol detect nahi hua. Language select karke dobara try karo.');
     words.sort((a, b) => a.s - b.s);
     try { localStorage.setItem('anas_captions_v1', JSON.stringify({ v: 1, words, created: Date.now() })); } catch (e) {}
-    $('count').textContent = words.length; $('took').textContent = fmt((Date.now() - t0) / 1000); $('usedDev').textContent = curDev === 'webgpu' ? 'GPU' : 'CPU';
+    $('count').textContent = words.length; $('took').textContent = fmt((Date.now() - t0) / 1000); $('usedDev').textContent = curDev === 'webgpu' ? 'GPU' : 'CPU'; $('usedLang').textContent = langName;
     $('preview').textContent = words.map(w => w.w).join(' '); $('result').hidden = false;
     live('Done ✓ ' + words.length + ' words.'); log('Done ✓');
   } catch (err) {
