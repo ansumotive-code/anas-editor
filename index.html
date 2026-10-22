@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ANAS EDITOR — AI Voice-to-Video Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">A</div><div><b>ANAS EDITOR</b><small>VOICE → VISUALS</small></div></div>
+    <div class="nav-label">WORKSPACE</div>
+    <button class="nav active">◫ <span>Studio</span></button>
+    <button class="nav" id="jumpCaptions">▤ <span>Caption Studio</span></button>
+    <button class="nav" id="jumpWave">∿ <span>Audio Visualizer</span></button>
+    <div class="side-bottom"><span class="status-dot"></span> Local preview mode</div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow">CREATOR WORKSPACE</div><h1>Make every second look premium.</h1></div><div class="top-actions"><span class="pill">BETA · 01</span><button class="btn ghost" id="resetBtn">Reset</button></div></header>
+    <section class="grid">
+      <div class="panel preview-panel">
+        <div class="panel-head"><div><b>Video Preview</b><small>16:9 · Live composition</small></div><span class="live"><i></i> PREVIEW</span></div>
+        <div class="stage-wrap"><canvas id="preview" width="1280" height="720"></canvas><div class="preview-hint" id="previewHint">Upload audio and images to begin</div></div>
+        <div class="preview-controls"><button class="btn primary" id="playBtn">▶ Play preview</button><span id="timeReadout">00:00 / 00:00</span><input id="scrub" type="range" min="0" max="100" value="0"></div>
+        <div class="note">This starter runs a local composition preview. API-backed image generation and full export rendering are separate integrations.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><b>Project Setup</b><small>Start with voiceover audio</small></div></div>
+        <div class="field"><label>VOICEOVER AUDIO</label><label class="upload" for="audioFile"><span class="upload-icon">♫</span><span><b id="audioName">Choose MP3 / WAV</b><small>Audio is processed locally in this demo</small></span><span class="choose">Browse</span></label><input id="audioFile" type="file" accept="audio/*" hidden></div>
+        <div class="field"><label>PRESENTER IMAGE (OPTIONAL)</label><label class="upload" for="personFile"><span class="upload-icon">▧</span><span><b id="personName">Add PNG / JPG</b><small>Transparent PNG works best</small></span><span class="choose">Browse</span></label><input id="personFile" type="file" accept="image/*" hidden></div>
+        <div class="field"><label>AI SCENE IMAGES</label><label class="upload" for="sceneFiles"><span class="upload-icon">▦</span><span><b id="sceneName">Add multiple images</b><small>Use topic-matched AI still images</small></span><span class="choose">Browse</span></label><input id="sceneFiles" type="file" accept="image/*" multiple hidden></div>
+        <div class="field"><label>COMPOSITION</label><select id="layout"><option value="left">Presenter left · visuals right</option><option value="right">Presenter right · visuals left</option><option value="corner">Full image · presenter corner</option></select></div>
+        <div class="field"><label>IMAGE TRANSITIONS</label><select id="transitionStyle"><option value="fade">Smooth Fade In / Fade Out</option><option value="fadezoom">Fade + Gentle Zoom</option><option value="cut">No transition (Cut)</option></select></div>
+        <div class="field"><label>TRANSITION DURATION</label><select id="transitionDuration"><option value="0.4">0.4 seconds · Quick</option><option value="0.7" selected>0.7 seconds · Premium</option><option value="1.2">1.2 seconds · Cinematic</option></select></div>
+        <div class="field"><label>OUTPUT FORMAT</label><div class="segmented"><button class="seg active" data-ratio="landscape">YouTube 16:9</button><button class="seg" data-ratio="vertical">Shorts 9:16</button></div></div>
+      </div>
+      <div class="panel" id="captionPanel">
+        <div class="panel-head"><div><b>Caption Studio</b><small>Premium two-line subtitle presets</small></div><span class="count">06 STYLES</span></div>
+        <div class="field"><label>CAPTION TEXT (DEMO)</label><textarea id="captionText" rows="2">THIS IS MY CAR AND</textarea><small class="helper">Audio transcription and word timing can be connected in the backend.</small></div>
+        <div class="template-grid" id="captionTemplates">
+          <button class="template selected" data-style="bold"><span class="mini bold">THIS IS<br>MY CAR AND</span><small>Creator Bold</small></button>
+          <button class="template" data-style="yellow"><span class="mini yellow">THIS IS<br>MY CAR AND</span><small>Impact Yellow</small></button>
+          <button class="template" data-style="clean"><span class="mini clean">THIS IS<br>MY CAR AND</span><small>Clean White</small></button>
+          <button class="template" data-style="boxed"><span class="mini boxed">THIS IS<br>MY CAR AND</span><small>Dark Box</small></button>
+          <button class="template" data-style="outline"><span class="mini outline">THIS IS<br>MY CAR AND</span><small>Neon Outline</small></button>
+          <button class="template" data-style="word"><span class="mini word">THIS IS<br>MY CAR AND</span><small>Word Pop</small></button>
+        </div>
+        <div class="two-fields"><div class="field"><label>FONT SIZE</label><input id="fontSize" type="range" min="32" max="84" value="64"></div><div class="field"><label>HIGHLIGHT COLOR</label><input id="highlight" type="color" value="#f7d84a"></div></div>
+      </div>
+      <div class="panel" id="wavePanel">
+        <div class="panel-head"><div><b>Audio Visualizer</b><small>Bottom-right waveform presets</small></div><span class="count">05 STYLES</span></div>
+        <div class="wave-demo"><canvas id="wavePreview" width="520" height="100"></canvas></div>
+        <div class="template-grid wave-grid" id="waveTemplates">
+          <button class="template wave-selected" data-wave="bars"><span class="wave-icon bars">▮▮▮▮▮</span><small>Pulse Bars</small></button>
+          <button class="template" data-wave="line"><span class="wave-icon line">∿∿∿∿</span><small>Smooth Line</small></button>
+          <button class="template" data-wave="dots"><span class="wave-icon dots">••••••</span><small>Dot Matrix</small></button>
+          <button class="template" data-wave="mirror"><span class="wave-icon mirror">▥▥▥▥</span><small>Mirror</small></button>
+          <button class="template" data-wave="ring"><span class="wave-icon ring">◉</span><small>Audio Ring</small></button>
+        </div>
+        <div class="two-fields"><div class="field"><label>WAVE COLOR</label><input id="waveColor" type="color" value="#65f5d0"></div><div class="field"><label>WAVE SIZE</label><input id="waveSize" type="range" min="35" max="100" value="70"></div></div>
+      </div>
+    </section>
+    <footer class="footer"><div><b>ANAS EDITOR</b><span> · Built for creators in the US, Mexico & worldwide</span></div><button class="btn primary" id="exportBtn">Export preview video ↗</button></footer>
+    <div class="toast" id="toast"></div>
+  </main>
+</div>
+<audio id="audio" crossorigin="anonymous"></audio>
+<script src="app.js"></script>
+</body></html>
