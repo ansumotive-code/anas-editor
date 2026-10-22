@@ -229,7 +229,7 @@ function drawCaption(c, W, H, tt) {
   let ws = words, t = tt;
   if (!ws.length) { ws = DEMO; t = (performance.now() / 1000) % (DEMO.length * .55 + .9); }
   let ai = -1; for (let i = 0; i < ws.length; i++) { if (t >= ws[i].s) ai = i; else break; }
-  if (ai < 0 || t > ws[ai].e + .9) return;
+  if (ai < 0 || t > ws[ai].e + .25) return;
   const per = +$('capPer').value, a = Math.floor(ai / per) * per, b = Math.min(ws.length, a + per);
   const anim = $('capAnim').value, look = $('capLook').value, base = $('capBase').value, acc = $('capAccent').value;
   const upper = $('capUpper').checked, rtl = $('capRTL').checked;

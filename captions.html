@@ -160,6 +160,33 @@ function distribute(tokens, start, end) {
   return tokens.map(t => { const d = (end - start) * (t.length + 1.5) / total; const o = { w: t, s: cur, e: cur + d * .92 }; cur += d; return o; });
 }
 
+
+/* ---- speech/silence map from the audio itself, so captions follow real pauses ---- */
+let env = null; const FR = 160; // 10 ms frames at 16 kHz
+function makeEnv(a) {
+  const n = Math.floor(a.length / FR), rms = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let s = 0; for (let k = i * FR, e = k + FR; k < e; k++) s += a[k] * a[k]; rms[i] = Math.sqrt(s / FR); }
+  const sm = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0, c = 0; for (let j = Math.max(0, i - 2); j <= Math.min(n - 1, i + 2); j++) { s += rms[j]; c++; } sm[i] = s / c; }
+  const sorted = Array.from(sm).sort((x, y) => x - y), pc = p => sorted[Math.min(n - 1, Math.floor(n * p))] || 0;
+  const floor = pc(.1), hi = pc(.95), thr = floor + (hi - floor) * .1;
+  return { sm, thr: Math.max(thr, 1e-4), n };
+}
+function speechSpans(t0, t1) {
+  if (!env) return [];
+  const a = Math.max(0, Math.floor(t0 * 100)), b = Math.min(env.n, Math.ceil(t1 * 100)), sp = []; let st = -1;
+  for (let i = a; i < b; i++) { const on = env.sm[i] > env.thr; if (on && st < 0) st = i; else if (!on && st >= 0) { sp.push([st / 100, i / 100]); st = -1; } }
+  if (st >= 0) sp.push([st / 100, b / 100]);
+  const m = []; for (const s of sp) { if (m.length && s[0] - m[m.length - 1][1] < .18) m[m.length - 1][1] = s[1]; else m.push(s.slice()); }
+  return m.filter(s => s[1] - s[0] >= .06);
+}
+function refine(tokens, s0, e0) {
+  const spans = speechSpans(s0 - .25, e0 + .25), tot = spans.reduce((a, s) => a + s[1] - s[0], 0);
+  if (!spans.length || tot < .12) return distribute(tokens, s0, e0);
+  const at = x => { let acc = 0; for (const s of spans) { const d = s[1] - s[0]; if (x <= acc + d) return s[0] + (x - acc); acc += d; } return spans[spans.length - 1][1]; };
+  const wt = tokens.map(t => t.length + 1.5), W = wt.reduce((a, b) => a + b, 0); let cum = 0;
+  return tokens.map((t, i) => { const a = cum / W * tot; cum += wt[i]; const b = cum / W * tot; return { w: t, s: at(a + .001), e: at(b) }; });
+}
+
 $('audioFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; file = f; $('audioName').textContent = f.name; live('Ready. Generate dabao.'); });
 $('cancelBtn').onclick = () => { cancelled = true; if (worker) worker.terminate(); log('Cancel kar diya.'); finish(); };
 function finish() {
@@ -180,6 +207,7 @@ $('genBtn').onclick = async () => {
     const dec = await ac.decodeAudioData(await file.arrayBuffer()); ac.close();
     const data = new Float32Array(dec.length);
     for (let ch = 0; ch < dec.numberOfChannels; ch++) { const d = dec.getChannelData(ch); for (let i = 0; i < d.length; i++) data[i] += d[i] / dec.numberOfChannels; }
+    env = makeEnv(data);
     const dur = data.length / 16000, wins = makeWindows(data);
     log('Audio length ' + fmt(dur) + ' · ' + wins.length + ' hisse');
 
@@ -219,7 +247,7 @@ $('genBtn').onclick = async () => {
       (r.out.chunks || []).forEach(c => {
         const ts = c.timestamp || [0, null], s0 = (ts[0] || 0) + off; let e0 = ts[1]; e0 = e0 == null ? s0 + .4 : e0 + off;
         const tokens = (c.text || '').trim().split(/\s+/).filter(Boolean);
-        if (tokens.length > 1) words.push(...distribute(tokens, s0, e0)); else if (tokens.length) words.push({ w: tokens[0], s: s0, e: e0 });
+        if (tokens.length) words.push(...refine(tokens, s0, e0));
       });
       const done = i + 1, el = (Date.now() - tStart) / 1000, eta = el / done * (wins.length - done);
       $('bar').style.width = (done / wins.length * 100) + '%';
@@ -229,6 +257,7 @@ $('genBtn').onclick = async () => {
     chunkStart = 0;
     if (!words.length) throw new Error('Koi bol detect nahi hua. Language select karke dobara try karo.');
     words.sort((a, b) => a.s - b.s);
+    for (let i = 1; i < words.length; i++) if (words[i].s < words[i - 1].e) words[i - 1].e = Math.max(words[i - 1].s + .05, words[i].s - .01);
     try { localStorage.setItem('anas_captions_v1', JSON.stringify({ v: 1, words, created: Date.now() })); } catch (e) {}
     $('count').textContent = words.length; $('took').textContent = fmt((Date.now() - t0) / 1000); $('usedDev').textContent = curDev === 'webgpu' ? 'GPU' : 'CPU'; $('usedLang').textContent = langName;
     $('preview').textContent = words.map(w => w.w).join(' '); $('result').hidden = false;
